@@ -24,8 +24,10 @@ jobs:
             echo "Tag $GITHUB_REF_NAME doesn't match build version $version" >&2
             exit 1
           fi
+      - name: Check release notes exist
+        run: test -s "docs/releases/$GITHUB_REF_NAME.md"
       - run: ./gradlew build
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" build/libs/ResourcePackButler-*.jar --title "$GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" build/libs/ResourcePackButler-*.jar --title "$GITHUB_REF_NAME" --notes-file "docs/releases/$GITHUB_REF_NAME.md"

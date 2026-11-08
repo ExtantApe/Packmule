@@ -2,7 +2,7 @@
 
 A Paper plugin that sends each world its own required resource packs, and warns at startup when a pack link is dead.
 
-**Status:** early. Tested with bots on throwaway Paper 26.1.2, 26.2 and 26.3 servers, with packs served by a small local web server. The bots answer pack requests the way a client's pack manager does, but no real game client has loaded a pack from it yet. See [What hasn't been tested](#what-hasnt-been-tested).
+**Status:** early. Tested with Mineflayer bots on throwaway Paper 26.1.2, 26.2 and 26.3 servers (26.2 and 26.3 reached through ViaVersion and ViaBackwards), with packs served by a small local web server. The bots answer pack requests the way a client's pack manager does, but no real game client has loaded a pack from it yet. See [What hasn't been tested](#what-hasnt-been-tested).
 
 ## What it does
 
