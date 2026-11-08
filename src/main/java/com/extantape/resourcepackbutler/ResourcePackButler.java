@@ -7,11 +7,11 @@ import com.extantape.resourcepackbutler.command.ButlerCommand;
 import com.extantape.resourcepackbutler.config.ButlerConfig;
 import com.extantape.resourcepackbutler.config.ButlerConfig.PackSource;
 import com.extantape.resourcepackbutler.send.PackSender;
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
-import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -70,12 +70,8 @@ public final class ResourcePackButler extends JavaPlugin implements Listener {
         sender = new PackSender(this);
         Bukkit.getPluginManager().registerEvents(sender, this);
         Bukkit.getPluginManager().registerEvents(this, this);
-        PluginCommand command = getCommand("butler");
-        if (command != null) {
-            ButlerCommand handler = new ButlerCommand(this);
-            command.setExecutor(handler);
-            command.setTabCompleter(handler);
-        }
+        ButlerCommand commands = new ButlerCommand(this);
+        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> commands.register(event.registrar()));
 
         // On the first tick, when every plugin has loaded its worlds.
         Bukkit.getScheduler().runTask(this, () -> {

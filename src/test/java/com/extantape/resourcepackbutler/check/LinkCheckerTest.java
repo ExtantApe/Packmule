@@ -131,6 +131,17 @@ class LinkCheckerTest {
     }
 
     @Test
+    void malformedUrlIsDeadNotFatal() throws Exception {
+        var yaml = new org.bukkit.configuration.file.YamlConfiguration();
+        yaml.loadFromString("packs:\n  bad: {url: 'htp:/nope'}\nworlds:\n  w: [bad]\n");
+        var result = com.extantape.resourcepackbutler.config.ButlerConfig.parse(yaml);
+        assertTrue(result.ok(), result.errors().toString());
+        var outcome = checker.check(result.config().packs().get("bad"), null);
+        assertFalse(outcome.live());
+        assertTrue(outcome.deadReason().startsWith("bad url"), outcome.deadReason());
+    }
+
+    @Test
     void unknownHostIsDead() {
         var outcome = checker.check(new PackSource("a", "http://no-such-host.invalid/x.zip", "c".repeat(40), null), null);
         assertFalse(outcome.live());

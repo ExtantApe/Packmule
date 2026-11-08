@@ -1,14 +1,9 @@
 name: ResourcePackButler
 version: '${version}'
 main: com.extantape.resourcepackbutler.ResourcePackButler
-api-version: '1.21.11'
+api-version: '26.1'
 description: Sends each world its own required resource packs, and warns at startup when a pack link is dead.
 website: https://github.com/ExtantApe/ResourcePackButler
-commands:
-  butler:
-    description: Re-check pack links, reload the config, or show what Butler is sending.
-    usage: /butler <recheck|reload|status>
-    aliases: [resourcepackbutler, rpb]
 permissions:
   resourcepackbutler.recheck:
     description: Use /butler recheck, which re-tests every link and re-reads every hash file.

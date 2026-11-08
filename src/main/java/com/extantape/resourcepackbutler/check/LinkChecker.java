@@ -55,6 +55,8 @@ public final class LinkChecker {
      */
     public Outcome check(PackSource source, String lastGood) {
         List<String> notes = new ArrayList<>();
+        String addressProblem = ButlerConfig.addressProblem(source.url());
+        if (addressProblem != null) return dead(source, "bad url '" + source.url() + "', because " + addressProblem, notes);
         String sha1;
         String fresh = null;
         if (!source.movingAddress()) {

@@ -55,7 +55,8 @@ class ButlerConfigTest {
                 """.formatted(H, H, H, "f".repeat(40)));
         assertFalse(result.ok());
         String all = String.join("\n", result.errors());
-        for (String part : List.of("'nohash' needs a hash", "'badurl'", "both sha1 and sha1-url", "'mismatch'", "'short'",
+        assertFalse(all.contains("'badurl'"), "a malformed url is a dead link, not a config error");
+        for (String part : List.of("'nohash' needs a hash", "both sha1 and sha1-url", "'mismatch'", "'short'",
                 "'missing'", "World 'w2'", "twice", "answer-timeout-seconds")) {
             assertTrue(all.contains(part), "missing error about " + part + " in:\n" + all);
         }
@@ -69,5 +70,34 @@ class ButlerConfigTest {
         assertNotNull(ButlerConfig.addressProblem("not a url"));
         assertNotNull(ButlerConfig.addressProblem("https:///nohost"));
         assertNull(ButlerConfig.addressProblem("http://127.0.0.1:9/x.zip"));
+    }
+
+    @Test
+    void shippedConfigMatchesTheDefaultsAndRenders() throws Exception {
+        YamlConfiguration shipped = new YamlConfiguration();
+        try (var in = getClass().getResourceAsStream("/config.yml")) {
+            shipped.loadFromString(new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+        }
+        var result = ButlerConfig.parse(shipped);
+        assertTrue(result.ok(), result.errors().toString());
+        assertEquals(ButlerConfig.Messages.DEFAULTS, result.config().messages(), "config.yml and Messages.DEFAULTS have drifted apart");
+
+        var mm = net.kyori.adventure.text.minimessage.MiniMessage.miniMessage();
+        var plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText();
+        var seconds = net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.unparsed("seconds", "60");
+        var m = result.config().messages();
+        for (String text : List.of(m.prompt(), m.declined(), m.noAnswer(), m.downloadFailed(), m.unavailable())) {
+            String rendered = plain.serialize(mm.deserialize(text, seconds));
+            assertFalse(rendered.contains("<"), "unrendered tag in: " + rendered);
+        }
+        assertTrue(plain.serialize(mm.deserialize(m.noAnswer(), seconds)).contains("within 60 seconds"));
+    }
+
+    @Test
+    void leftOutMessagesUseTheirDefaults() throws Exception {
+        var result = parse("messages:\n  prompt: \"Custom\"\n");
+        assertTrue(result.ok());
+        assertEquals("Custom", result.config().messages().prompt());
+        assertEquals(ButlerConfig.Messages.DEFAULTS.declined(), result.config().messages().declined());
     }
 }

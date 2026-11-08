@@ -15,9 +15,7 @@ import java.util.regex.Pattern;
 public record ButlerConfig(
         Map<String, PackSource> packs,
         Map<String, List<String>> worlds,
-        String prompt,
-        String declinedMessage,
-        String noAnswerMessage,
+        Messages messages,
         int answerTimeoutSeconds,
         int downloadRetries,
         int checkTimeoutSeconds) {
@@ -25,11 +23,33 @@ public record ButlerConfig(
     private static final Pattern SHA1 = Pattern.compile("[0-9a-f]{40}");
     private static final Pattern BUILD_FILE = Pattern.compile("([0-9a-fA-F]{40})\\.zip");
 
-    /** Where a pack lives and how its hash is known. Exactly one of sha1 and sha1Url is set. */
+    /**
+     * Where a pack lives and how its hash is known. Exactly one of sha1 and sha1Url is set, except for a
+     * malformed url, which has neither and is always reported dead.
+     */
     public record PackSource(String name, String url, String sha1, String sha1Url) {
         public boolean movingAddress() {
             return sha1Url != null;
         }
+    }
+
+    /**
+     * What players see, in MiniMessage. {@code <seconds>} in no-answer is the timeout. Defaults match config.yml;
+     * a message left out of the config uses its default, so an old config still reads well.
+     */
+    public record Messages(String prompt, String declined, String noAnswer, String downloadFailed, String unavailable) {
+        public static final Messages DEFAULTS = new Messages(
+                "This world has its own resource pack. Choose <b>Proceed</b> to download it and keep playing.",
+                "<b>This server needs its resource packs to play.</b><newline><newline>"
+                        + "The download was declined. Rejoin and choose <b>Proceed</b> when asked.<newline><newline>"
+                        + "<gray>Not asked at all? Your game is set to refuse server packs. In Multiplayer, select this server, "
+                        + "choose Edit, and set Server Resource Packs to Prompt or Enabled.</gray>",
+                "<b>The resource pack prompt timed out.</b><newline><newline>"
+                        + "It wasn't answered within <seconds> seconds. Rejoin and choose <b>Proceed</b> when asked.",
+                "<yellow>This world's resource pack couldn't be downloaded, so some things may look different. "
+                        + "Rejoin to try again.</yellow>",
+                "<yellow>Part of this world's resource pack isn't available right now, so some things may look different. "
+                        + "Staff have been told.</yellow>");
     }
 
     public record Result(ButlerConfig config, List<String> errors) {
@@ -127,23 +147,28 @@ public record ButlerConfig(
         int answer = intSetting(root, "answer-timeout-seconds", 60, 5, 600, errors);
         int retries = intSetting(root, "download-retries", 2, 0, 10, errors);
         int timeout = intSetting(root, "check-timeout-seconds", 10, 1, 120, errors);
-        String prompt = root.getString("prompt", "");
-        String declined = root.getString("messages.declined", "This server needs its resource packs. Rejoin and accept them to play.");
-        String noAnswer = root.getString("messages.no-answer", "The resource pack prompt wasn't answered in time. Rejoin to try again.");
+        Messages d = Messages.DEFAULTS;
+        Messages messages = new Messages(
+                root.getString("messages.prompt", d.prompt()),
+                root.getString("messages.declined", d.declined()),
+                root.getString("messages.no-answer", d.noAnswer()),
+                root.getString("messages.download-failed", d.downloadFailed()),
+                root.getString("messages.unavailable", d.unavailable()));
 
         ButlerConfig config = new ButlerConfig(Collections.unmodifiableMap(packs), Collections.unmodifiableMap(worlds),
-                prompt, declined, noAnswer, answer, retries, timeout);
+                messages, answer, retries, timeout);
         return new Result(config, List.copyOf(errors));
     }
 
     private static PackSource parsePack(String name, ConfigurationSection pack, List<String> errors) {
         String url = pack.getString("url");
-        String problem = addressProblem(url);
-        if (problem != null) {
-            errors.add("Pack '" + name + "': url is missing or bad, because " + problem + ".");
+        if (url == null || url.isBlank()) {
+            errors.add("Pack '" + name + "' has no url.");
             return null;
         }
         url = url.trim();
+        // A malformed address is a dead link, not a broken config: the link check reports it and the rest still works.
+        if (addressProblem(url) != null) return new PackSource(name, url, null, null);
         String sha1 = pack.getString("sha1");
         String sha1Url = pack.getString("sha1-url");
         if (sha1 != null) sha1 = sha1.trim().toLowerCase(Locale.ROOT);
@@ -165,14 +190,7 @@ public record ButlerConfig(
             }
             return new PackSource(name, url, sha1, null);
         }
-        if (sha1Url != null) {
-            String sha1Problem = addressProblem(sha1Url);
-            if (sha1Problem != null) {
-                errors.add("Pack '" + name + "': sha1-url is bad, because " + sha1Problem + ".");
-                return null;
-            }
-            return new PackSource(name, url, null, sha1Url);
-        }
+        if (sha1Url != null) return new PackSource(name, url, null, sha1Url); // A bad one is reported by the check.
         if (fromName != null) return new PackSource(name, url, fromName, null);
         errors.add("Pack '" + name + "' needs a hash: use a per-build url ending in <sha1>.zip, or add sha1 or sha1-url.");
         return null;

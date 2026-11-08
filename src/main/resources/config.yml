@@ -35,12 +35,19 @@ worlds: {}
 #  world_the_end: [main]
 #  some_other_world: []
 
-# Shown on the client's pack prompt.
-prompt: "This world uses its own resource pack."
-
+# What players see. MiniMessage formatting: <b>bold</b>, <gray>colours</gray>, <newline> for a line break.
+# Leave a message out to use its default. Players never see pack or world names from this file.
 messages:
-  declined: "This server needs its resource packs. Rejoin and accept them to play."
-  no-answer: "The resource pack prompt wasn't answered in time. Rejoin to try again."
+  # On the client's pack prompt, above its Proceed and Disconnect buttons.
+  prompt: "This world has its own resource pack. Choose <b>Proceed</b> to download it and keep playing."
+  # Kick screen after a player declines. A game set to refuse server packs declines without asking.
+  declined: "<b>This server needs its resource packs to play.</b><newline><newline>The download was declined. Rejoin and choose <b>Proceed</b> when asked.<newline><newline><gray>Not asked at all? Your game is set to refuse server packs. In Multiplayer, select this server, choose Edit, and set Server Resource Packs to Prompt or Enabled.</gray>"
+  # Kick screen when the prompt isn't answered. <seconds> is answer-timeout-seconds.
+  no-answer: "<b>The resource pack prompt timed out.</b><newline><newline>It wasn't answered within <seconds> seconds. Rejoin and choose <b>Proceed</b> when asked."
+  # In chat, once, when a download still fails after its retries. The player stays.
+  download-failed: "<yellow>This world's resource pack couldn't be downloaded, so some things may look different. Rejoin to try again.</yellow>"
+  # In chat, once, when a pack for this world has a dead link. Admins get the details.
+  unavailable: "<yellow>Part of this world's resource pack isn't available right now, so some things may look different. Staff have been told.</yellow>"
 
 # A client that doesn't answer the prompt in this many seconds is kicked.
 answer-timeout-seconds: 60

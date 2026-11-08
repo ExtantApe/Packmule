@@ -7,6 +7,8 @@ import com.extantape.resourcepackbutler.send.PackPlan.Pack;
 import net.kyori.adventure.resource.ResourcePackInfo;
 import net.kyori.adventure.resource.ResourcePackRequest;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -21,8 +23,10 @@ import org.bukkit.event.player.PlayerRespawnEvent;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -59,6 +63,8 @@ public final class PackSender implements Listener {
         final List<Sent> sent = new ArrayList<>();
         /** Packs Butler took off before the client finished with them; the client reports those as discarded. */
         final Map<UUID, Integer> expectDiscard = new HashMap<>();
+        /** Packs this player has already been told about, so each notice shows once per session. */
+        final Set<String> told = new HashSet<>();
         boolean kicked;
 
         Sent find(UUID id) {
@@ -105,7 +111,12 @@ public final class PackSender implements Listener {
         if (!player.isOnline()) return;
         PlayerPacks state = players.computeIfAbsent(player.getUniqueId(), k -> new PlayerPacks());
         if (state.kicked) return;
-        List<Pack> wanted = wanted(player.getWorld().getName());
+        List<String> unavailable = new ArrayList<>();
+        List<Pack> wanted = wanted(player.getWorld().getName(), unavailable);
+        // One notice per world per session, however many of its packs are down.
+        if (!unavailable.isEmpty() && state.told.add("unavailable:" + player.getWorld().getName())) {
+            player.sendMessage(text(ButlerConfig.Messages::unavailable));
+        }
         List<Pack> sent = state.sent.stream().map(s -> s.pack).toList();
         PackPlan.Change change = PackPlan.between(sent, wanted);
         if (change.none()) return;
@@ -126,7 +137,7 @@ public final class PackSender implements Listener {
     public void fillMissing() {
         for (Player player : Bukkit.getOnlinePlayers()) {
             PlayerPacks state = players.get(player.getUniqueId());
-            List<Pack> wanted = wanted(player.getWorld().getName());
+            List<Pack> wanted = wanted(player.getWorld().getName(), new ArrayList<>());
             if (state == null) {
                 sync(player);
                 continue;
@@ -161,7 +172,16 @@ public final class PackSender implements Listener {
         players.clear();
     }
 
-    private List<Pack> wanted(String world) {
+    /** A player-facing message from the config, or its default when no config is loaded. */
+    private Component text(java.util.function.Function<ButlerConfig.Messages, String> pick) {
+        ButlerConfig config = plugin.config();
+        ButlerConfig.Messages messages = config == null ? ButlerConfig.Messages.DEFAULTS : config.messages();
+        int seconds = config == null ? 60 : config.answerTimeoutSeconds();
+        return MiniMessage.miniMessage().deserialize(pick.apply(messages), Placeholder.unparsed("seconds", String.valueOf(seconds)));
+    }
+
+    /** The packs a world gets right now. Packs left out because their link is dead go in {@code unavailable}. */
+    private List<Pack> wanted(String world, List<String> unavailable) {
         ButlerConfig config = plugin.config();
         if (config == null) return List.of();
         List<String> names = config.worlds().get(world);
@@ -173,6 +193,7 @@ public final class PackSender implements Listener {
             if (!outcome.live()) {
                 plugin.warnAdmins("dead:" + name + ":" + world, "World '" + world + "' isn't getting pack '" + name
                         + "' because its link is dead: " + outcome.deadReason() + ". Run /butler recheck once it's fixed.");
+                unavailable.add(name);
                 continue;
             }
             packs.add(new Pack(PackPlan.idFor(name), name, outcome.url(), outcome.sha1()));
@@ -207,7 +228,7 @@ public final class PackSender implements Listener {
                 .packs(infos)
                 .replace(false) // Never clear packs other plugins sent.
                 .required(true);
-        if (config != null && !config.prompt().isBlank()) request.prompt(Component.text(config.prompt()));
+        if (config != null && !config.messages().prompt().isBlank()) request.prompt(text(ButlerConfig.Messages::prompt));
         player.sendResourcePacks(request.build());
 
         long timeoutTicks = (config == null ? 60 : config.answerTimeoutSeconds()) * 20L;
@@ -218,7 +239,7 @@ public final class PackSender implements Listener {
             for (var entry : asked.entrySet()) {
                 Sent s = entry.getKey();
                 if (state.sent.contains(s) && s.generation == entry.getValue() && !s.answered) {
-                    kick(player, state, plugin.config() == null ? "" : plugin.config().noAnswerMessage());
+                    kick(player, state, text(ButlerConfig.Messages::noAnswer));
                     return;
                 }
             }
@@ -246,7 +267,7 @@ public final class PackSender implements Listener {
             }
             case DECLINED -> {
                 s.answered = true;
-                kick(player, state, plugin.config() == null ? "" : plugin.config().declinedMessage());
+                kick(player, state, text(ButlerConfig.Messages::declined));
             }
             case FAILED_DOWNLOAD, INVALID_URL, FAILED_RELOAD -> {
                 s.answered = true;
@@ -262,6 +283,7 @@ public final class PackSender implements Listener {
                     }, RETRY_DELAY_TICKS);
                 } else {
                     s.gaveUp = true;
+                    if (state.told.add("failed:" + s.pack.name())) player.sendMessage(text(ButlerConfig.Messages::downloadFailed));
                     plugin.warnAdmins("failed:" + s.pack.name() + ":" + player.getWorld().getName(),
                             player.getName() + " is in world '" + player.getWorld().getName() + "' without pack '" + s.pack.name()
                                     + "': the download failed " + (s.retries + 1) + " times (" + status + "). Check the host for " + s.pack.url());
@@ -294,9 +316,9 @@ public final class PackSender implements Listener {
         push(player, state, tail);
     }
 
-    private void kick(Player player, PlayerPacks state, String message) {
+    private void kick(Player player, PlayerPacks state, Component message) {
         if (state.kicked) return;
         state.kicked = true;
-        player.kick(Component.text(message));
+        player.kick(message);
     }
 }
