@@ -26,3 +26,4 @@ Owner decisions that shape Butler, with the date each was made. Change these onl
 - **Paper only:** `paper-api` and `paper-plugin.yml`, not Spigot.
 - **Done well:** what players and admins see should be clear and readable, with sensible defaults. This produced the player messages in `config.yml`.
 - **Test hygiene:** one test server at a time, deleted after its run.
+- **Going public:** the owner said yes to making this repo public at its first release, after the first-public-push audit passed.
