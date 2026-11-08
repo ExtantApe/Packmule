@@ -1,0 +1,10 @@
+.gradle/
+build/
+run/
+.idea/
+*.iml
+.DS_Store
+test/node_modules/
+test/.work/
+.secrets/
+.env

@@ -1,0 +1,52 @@
+# Resource Pack Butler
+#
+# Every pack is required. A player who declines is kicked. A player whose download fails is retried,
+# then let in without that pack, and admins are told.
+#
+# 1. Name your packs. Each pack is one of:
+#
+#    A per-build address, with the SHA-1 in the file name. Nothing else needed:
+#      url: https://packs.example.com/TOKEN/0123456789abcdef0123456789abcdef01234567.zip
+#
+#    A moving address with a hash file next to it. Butler reads the hash at startup and on
+#    /butler recheck. If <same folder>/<sha1>.zip serves that exact build, players get that address
+#    instead, so nobody downloads a file that changed under an old hash:
+#      url: https://packs.example.com/TOKEN/pack.zip
+#      sha1-url: https://packs.example.com/TOKEN/pack.zip.sha1
+#
+#    Any address, with the SHA-1 written here:
+#      url: https://example.com/my-pack.zip
+#      sha1: 0123456789abcdef0123456789abcdef01234567
+#
+# 2. List every world, each Nether and End included, with the packs it gets in order. Later packs
+#    sit on top of earlier ones. An empty list [] means Butler sends that world nothing.
+#    A world that isn't listed also gets nothing, and Butler warns about it at startup.
+#
+# Butler only ever removes packs it sent. Other plugins' packs (BlueMapHUD's, say) are left alone.
+# Leave resource-pack= empty in server.properties: a pack there fights Butler's.
+
+packs: {}
+#  main:
+#    url: https://packs.example.com/TOKEN/0123456789abcdef0123456789abcdef01234567.zip
+
+worlds: {}
+#  world: [main]
+#  world_nether: [main]
+#  world_the_end: [main]
+#  some_other_world: []
+
+# Shown on the client's pack prompt.
+prompt: "This world uses its own resource pack."
+
+messages:
+  declined: "This server needs its resource packs. Rejoin and accept them to play."
+  no-answer: "The resource pack prompt wasn't answered in time. Rejoin to try again."
+
+# A client that doesn't answer the prompt in this many seconds is kicked.
+answer-timeout-seconds: 60
+
+# Times a failed download is sent again before the player is let in without that pack.
+download-retries: 2
+
+# How long a link check waits for a host to connect or send more data, in seconds.
+check-timeout-seconds: 10
