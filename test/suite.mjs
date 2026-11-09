@@ -12,7 +12,7 @@ if (VERSION === '26.3') process.env.PACKMULE_TEST_STILL = '1' // see Bot: 26.3 k
 const LONG = process.env.PACKMULE_TEST_LONG !== '0'
 const jar = n => path.join(JARS, n)
 const plugins = [jar('multiverse-core-5.8.2.jar'), jar('multiverse-inventories-5.3.6.jar'), jar('bluemap-5.29-paper.jar'),
-  (() => { const d = path.join(process.env.HOME, 'Code/BlueMapHUD/build/libs'); const f = readdirSync(d).filter(n => /^BlueMinimap-[\d.]+\.jar$/.test(n)); if (f.length !== 1) throw new Error('expected one BlueMinimap jar in ' + d); return path.join(d, f[0]) })()]
+  (() => { const d = path.join(process.env.HOME, 'Code/BlueMinimap/build/libs'); const f = readdirSync(d).filter(n => /^BlueMinimap-[\d.]+\.jar$/.test(n)); if (f.length !== 1) throw new Error('expected one BlueMinimap jar in ' + d); return path.join(d, f[0]) })()]
 plugins.push(jar('ViaVersion-5.12.3-SNAPSHOT.jar'), jar('ViaBackwards-5.12.3-SNAPSHOT.jar'))
 
 const HUD_ID = (() => { // BlueMinimap's fixed pack ID (unchanged from its BlueMapHUD days): UUID.nameUUIDFromBytes("bluemaphud:pack")
@@ -59,7 +59,7 @@ const TEST_TIMEOUT = 'answer-timeout-seconds: 6\n'
 // ---------- server ----------
 const dir = freshServer(`suite-${VERSION}`, { paper: jar(`paper-${VERSION}.jar`), plugins, packmuleConfig: goodConfig(TEST_TIMEOUT) })
 // BlueMinimap hosts its pack on port 8164 by default, which other sessions' test servers may hold. Give it one of ours.
-{ const hud = readFileSync(path.join(process.env.HOME, 'Code/BlueMapHUD/src/main/resources/config.yml'), 'utf8')
+{ const hud = readFileSync(path.join(process.env.HOME, 'Code/BlueMinimap/src/main/resources/config.yml'), 'utf8')
   if (!/^  port: 8164$/m.test(hud)) throw new Error("BlueMinimap's default config no longer has port: 8164")
   const { mkdirSync } = await import('node:fs'); mkdirSync(path.join(dir, 'plugins/BlueMinimap'), { recursive: true })
   writeFileSync(path.join(dir, 'plugins/BlueMinimap/config.yml'), hud.replace(/^  port: 8164$/m, '  port: 25615')) }
