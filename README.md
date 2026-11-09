@@ -113,7 +113,7 @@ cd test && npm install
 PACKMULE_TEST_WORK=/tmp/rpb PACKMULE_TEST_JARS=/path/to/jars PACKMULE_TEST_JAVA=/path/to/java25 node suite.mjs 26.3
 ```
 
-`PACKMULE_TEST_JARS` holds `paper-<version>.jar` for each version, Multiverse-Core 5.8.2, Multiverse-Inventories 5.3.6, `bluemap-5.29-paper.jar`, and ViaVersion and ViaBackwards 5.12.3. BlueMapHUD and Waystation come from their own builds in `~/Code`.
+`PACKMULE_TEST_JARS` holds `paper-<version>.jar` for each version, Multiverse-Core 5.8.2, Multiverse-Inventories 5.3.6, `bluemap-5.29-paper.jar`, and ViaVersion and ViaBackwards 5.12.3. BlueMinimap and Waystation come from their own builds in `~/Code`.
 
 ## What hasn't been tested
 
