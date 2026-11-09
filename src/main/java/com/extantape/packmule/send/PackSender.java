@@ -1,9 +1,9 @@
-package com.extantape.resourcepackbutler.send;
+package com.extantape.packmule.send;
 
-import com.extantape.resourcepackbutler.ResourcePackButler;
-import com.extantape.resourcepackbutler.check.LinkChecker.Outcome;
-import com.extantape.resourcepackbutler.config.ButlerConfig;
-import com.extantape.resourcepackbutler.send.PackPlan.Pack;
+import com.extantape.packmule.Packmule;
+import com.extantape.packmule.check.LinkChecker.Outcome;
+import com.extantape.packmule.config.PackmuleConfig;
+import com.extantape.packmule.send.PackPlan.Pack;
 import net.kyori.adventure.resource.ResourcePackInfo;
 import net.kyori.adventure.resource.ResourcePackRequest;
 import net.kyori.adventure.text.Component;
@@ -30,21 +30,21 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Keeps each player's Butler packs matching their world, and handles what the client says back. Runs on the
+ * Keeps each player's Packmule packs matching their world, and handles what the client says back. Runs on the
  * main thread only. Never touches a pack ID it didn't send, so other plugins' packs stay where they are.
  */
 public final class PackSender implements Listener {
     private static final long RETRY_DELAY_TICKS = 40;
 
-    private final ResourcePackButler plugin;
+    private final Packmule plugin;
     private final Map<UUID, PlayerPacks> players = new HashMap<>();
     private long generations;
 
-    public PackSender(ResourcePackButler plugin) {
+    public PackSender(Packmule plugin) {
         this.plugin = plugin;
     }
 
-    /** One pack as this player's client has it, as far as Butler knows. */
+    /** One pack as this player's client has it, as far as Packmule knows. */
     private static final class Sent {
         final Pack pack;
         int retries;
@@ -61,7 +61,7 @@ public final class PackSender implements Listener {
 
     private static final class PlayerPacks {
         final List<Sent> sent = new ArrayList<>();
-        /** Packs Butler took off before the client finished with them; the client reports those as discarded. */
+        /** Packs Packmule took off before the client finished with them; the client reports those as discarded. */
         final Map<UUID, Integer> expectDiscard = new HashMap<>();
         /** Packs this player has already been told about, so each notice shows once per session. */
         final Set<String> told = new HashSet<>();
@@ -106,7 +106,7 @@ public final class PackSender implements Listener {
         else Bukkit.getScheduler().runTask(plugin, () -> handleStatus(player, id, status));
     }
 
-    /** Brings one player's Butler packs in line with their current world. Does nothing when they already match. */
+    /** Brings one player's Packmule packs in line with their current world. Does nothing when they already match. */
     public void sync(Player player) {
         if (!player.isOnline()) return;
         PlayerPacks state = players.computeIfAbsent(player.getUniqueId(), k -> new PlayerPacks());
@@ -115,7 +115,7 @@ public final class PackSender implements Listener {
         List<Pack> wanted = wanted(player.getWorld().getName(), unavailable);
         // One notice per world per session, however many of its packs are down.
         if (!unavailable.isEmpty() && state.told.add("unavailable:" + player.getWorld().getName())) {
-            player.sendMessage(text(ButlerConfig.Messages::unavailable));
+            player.sendMessage(text(PackmuleConfig.Messages::unavailable));
         }
         List<Pack> sent = state.sent.stream().map(s -> s.pack).toList();
         PackPlan.Change change = PackPlan.between(sent, wanted);
@@ -156,7 +156,7 @@ public final class PackSender implements Listener {
         }
     }
 
-    /** What Butler is sending a player, for /butler status. */
+    /** What Packmule is sending a player, for /packmule status. */
     public List<String> describe(Player player) {
         PlayerPacks state = players.get(player.getUniqueId());
         if (state == null || state.sent.isEmpty()) return List.of("nothing");
@@ -173,16 +173,16 @@ public final class PackSender implements Listener {
     }
 
     /** A player-facing message from the config, or its default when no config is loaded. */
-    private Component text(java.util.function.Function<ButlerConfig.Messages, String> pick) {
-        ButlerConfig config = plugin.config();
-        ButlerConfig.Messages messages = config == null ? ButlerConfig.Messages.DEFAULTS : config.messages();
+    private Component text(java.util.function.Function<PackmuleConfig.Messages, String> pick) {
+        PackmuleConfig config = plugin.config();
+        PackmuleConfig.Messages messages = config == null ? PackmuleConfig.Messages.DEFAULTS : config.messages();
         int seconds = config == null ? 60 : config.answerTimeoutSeconds();
         return MiniMessage.miniMessage().deserialize(pick.apply(messages), Placeholder.unparsed("seconds", String.valueOf(seconds)));
     }
 
     /** The packs a world gets right now. Packs left out because their link is dead go in {@code unavailable}. */
     private List<Pack> wanted(String world, List<String> unavailable) {
-        ButlerConfig config = plugin.config();
+        PackmuleConfig config = plugin.config();
         if (config == null) return List.of();
         List<String> names = config.worlds().get(world);
         if (names == null) return List.of();
@@ -192,7 +192,7 @@ public final class PackSender implements Listener {
             if (outcome == null) continue; // Still being checked.
             if (!outcome.live()) {
                 plugin.warnAdmins("dead:" + name + ":" + world, "World '" + world + "' isn't getting pack '" + name
-                        + "' because its link is dead: " + outcome.deadReason() + ". Run /butler recheck once it's fixed.");
+                        + "' because its link is dead: " + outcome.deadReason() + ". Run /packmule recheck once it's fixed.");
                 unavailable.add(name);
                 continue;
             }
@@ -213,7 +213,7 @@ public final class PackSender implements Listener {
 
     private void push(Player player, PlayerPacks state, List<Sent> packs) {
         if (packs.isEmpty()) return;
-        ButlerConfig config = plugin.config();
+        PackmuleConfig config = plugin.config();
         List<ResourcePackInfo> infos = new ArrayList<>();
         Map<Sent, Long> asked = new HashMap<>();
         for (Sent s : packs) {
@@ -228,7 +228,7 @@ public final class PackSender implements Listener {
                 .packs(infos)
                 .replace(false) // Never clear packs other plugins sent.
                 .required(true);
-        if (config != null && !config.messages().prompt().isBlank()) request.prompt(text(ButlerConfig.Messages::prompt));
+        if (config != null && !config.messages().prompt().isBlank()) request.prompt(text(PackmuleConfig.Messages::prompt));
         player.sendResourcePacks(request.build());
 
         long timeoutTicks = (config == null ? 60 : config.answerTimeoutSeconds()) * 20L;
@@ -239,7 +239,7 @@ public final class PackSender implements Listener {
             for (var entry : asked.entrySet()) {
                 Sent s = entry.getKey();
                 if (state.sent.contains(s) && s.generation == entry.getValue() && !s.answered) {
-                    kick(player, state, text(ButlerConfig.Messages::noAnswer));
+                    kick(player, state, text(PackmuleConfig.Messages::noAnswer));
                     return;
                 }
             }
@@ -258,7 +258,7 @@ public final class PackSender implements Listener {
             }
         }
         Sent s = state.find(id);
-        if (s == null || state.kicked) return; // Not Butler's, or no longer wanted.
+        if (s == null || state.kicked) return; // Not Packmule's, or no longer wanted.
         switch (status) {
             case ACCEPTED, DOWNLOADED -> s.answered = true;
             case SUCCESSFULLY_LOADED -> {
@@ -267,7 +267,7 @@ public final class PackSender implements Listener {
             }
             case DECLINED -> {
                 s.answered = true;
-                kick(player, state, text(ButlerConfig.Messages::declined));
+                kick(player, state, text(PackmuleConfig.Messages::declined));
             }
             case FAILED_DOWNLOAD, INVALID_URL, FAILED_RELOAD -> {
                 s.answered = true;
@@ -283,7 +283,7 @@ public final class PackSender implements Listener {
                     }, RETRY_DELAY_TICKS);
                 } else {
                     s.gaveUp = true;
-                    if (state.told.add("failed:" + s.pack.name())) player.sendMessage(text(ButlerConfig.Messages::downloadFailed));
+                    if (state.told.add("failed:" + s.pack.name())) player.sendMessage(text(PackmuleConfig.Messages::downloadFailed));
                     plugin.warnAdmins("failed:" + s.pack.name() + ":" + player.getWorld().getName(),
                             player.getName() + " is in world '" + player.getWorld().getName() + "' without pack '" + s.pack.name()
                                     + "': the download failed " + (s.retries + 1) + " times (" + status + "). Check the host for " + s.pack.url());
@@ -305,7 +305,7 @@ public final class PackSender implements Listener {
         }
     }
 
-    /** Sends a pack again, along with every Butler pack after it, so their order holds. */
+    /** Sends a pack again, along with every Packmule pack after it, so their order holds. */
     private void resendFrom(Player player, PlayerPacks state, Sent from) {
         if (!player.isOnline()) return;
         int index = state.sent.indexOf(from);

@@ -1,12 +1,12 @@
-package com.extantape.resourcepackbutler;
+package com.extantape.packmule;
 
-import com.extantape.resourcepackbutler.check.HashStore;
-import com.extantape.resourcepackbutler.check.LinkChecker;
-import com.extantape.resourcepackbutler.check.LinkChecker.Outcome;
-import com.extantape.resourcepackbutler.command.ButlerCommand;
-import com.extantape.resourcepackbutler.config.ButlerConfig;
-import com.extantape.resourcepackbutler.config.ButlerConfig.PackSource;
-import com.extantape.resourcepackbutler.send.PackSender;
+import com.extantape.packmule.check.HashStore;
+import com.extantape.packmule.check.LinkChecker;
+import com.extantape.packmule.check.LinkChecker.Outcome;
+import com.extantape.packmule.command.PackmuleCommand;
+import com.extantape.packmule.config.PackmuleConfig;
+import com.extantape.packmule.config.PackmuleConfig.PackSource;
+import com.extantape.packmule.send.PackSender;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -31,10 +31,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public final class ResourcePackButler extends JavaPlugin implements Listener {
+public final class Packmule extends JavaPlugin implements Listener {
     private static final long WARN_AGAIN_AFTER_MS = 60_000;
 
-    private ButlerConfig config;
+    private PackmuleConfig config;
     /** Each pack's last check, with the source it was made from so a changed source is never sent stale. */
     private volatile Map<String, Checked> outcomes = Map.of();
     private HashStore hashStore;
@@ -49,9 +49,11 @@ public final class ResourcePackButler extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
+        String moved = Migration.copyIfMissing(getDataFolder().toPath().resolveSibling("ResourcePackButler"), getDataFolder().toPath());
+        if (moved != null) getLogger().warning(moved);
         saveDefaultConfig();
         checks = Executors.newFixedThreadPool(4, runnable -> {
-            Thread thread = new Thread(runnable, "ResourcePackButler-check");
+            Thread thread = new Thread(runnable, "Packmule-check");
             thread.setDaemon(true);
             return thread;
         });
@@ -59,18 +61,18 @@ public final class ResourcePackButler extends JavaPlugin implements Listener {
         String storeProblem = hashStore.load();
         if (storeProblem != null) getLogger().warning(storeProblem);
 
-        ButlerConfig.Result result = readConfig();
+        PackmuleConfig.Result result = readConfig();
         if (result.ok()) {
             config = result.config();
         } else {
             logErrors(result);
-            getLogger().severe("config.yml has problems, so Butler sends no packs until it's fixed and /butler reload is run.");
+            getLogger().severe("config.yml has problems, so Packmule sends no packs until it's fixed and /packmule reload is run.");
         }
 
         sender = new PackSender(this);
         Bukkit.getPluginManager().registerEvents(sender, this);
         Bukkit.getPluginManager().registerEvents(this, this);
-        ButlerCommand commands = new ButlerCommand(this);
+        PackmuleCommand commands = new PackmuleCommand(this);
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> commands.register(event.registrar()));
 
         // On the first tick, when every plugin has loaded its worlds.
@@ -89,7 +91,7 @@ public final class ResourcePackButler extends JavaPlugin implements Listener {
         if (sender != null) sender.clear();
     }
 
-    public ButlerConfig config() {
+    public PackmuleConfig config() {
         return config;
     }
 
@@ -110,7 +112,7 @@ public final class ResourcePackButler extends JavaPlugin implements Listener {
 
     /** Reads config.yml again. On any problem the old config stays in use. Returns the problems. */
     public List<String> reload() {
-        ButlerConfig.Result result = readConfig();
+        PackmuleConfig.Result result = readConfig();
         if (!result.ok()) {
             logErrors(result);
             getLogger().warning(config == null ? "Still sending no packs." : "Keeping the config that was already loaded.");
@@ -125,7 +127,7 @@ public final class ResourcePackButler extends JavaPlugin implements Listener {
 
     /** Re-tests every link and re-reads every hash file. Players online keep what they have until they change worlds. */
     public void startCheck(org.bukkit.command.CommandSender reportTo, boolean first) {
-        ButlerConfig snapshot = config;
+        PackmuleConfig snapshot = config;
         if (snapshot == null) return;
         long round = ++checkRound;
         checking = true;
@@ -155,7 +157,7 @@ public final class ResourcePackButler extends JavaPlugin implements Listener {
         });
     }
 
-    private void finishCheck(long round, ButlerConfig snapshot, Map<String, Checked> done,
+    private void finishCheck(long round, PackmuleConfig snapshot, Map<String, Checked> done,
                              org.bukkit.command.CommandSender reportTo, boolean first, Throwable error) {
         if (round != checkRound) return; // A newer check started; it reports instead.
         checking = false;
@@ -174,18 +176,18 @@ public final class ResourcePackButler extends JavaPlugin implements Listener {
                 List<String> worlds = worldsUsing(snapshot, name);
                 warnAdmins("dead:" + name, "Pack '" + name + "' link is dead: " + outcome.deadReason() + ". "
                         + (worlds.isEmpty() ? "No world uses it." : "Players in " + String.join(", ", worlds) + " get in without it.")
-                        + " Run /butler recheck once it's fixed.", true);
+                        + " Run /packmule recheck once it's fixed.", true);
             }
         }
         String summary = done.size() + " pack" + (done.size() == 1 ? "" : "s") + " checked, " + dead + " dead.";
         getLogger().info(summary);
         if (reportTo != null && !(reportTo instanceof org.bukkit.command.ConsoleCommandSender)) {
-            reportTo.sendMessage(Component.text("Resource Pack Butler: " + summary, dead == 0 ? NamedTextColor.GREEN : NamedTextColor.RED));
+            reportTo.sendMessage(Component.text("Packmule: " + summary, dead == 0 ? NamedTextColor.GREEN : NamedTextColor.RED));
         }
         if (first) sender.fillMissing();
     }
 
-    private static List<String> worldsUsing(ButlerConfig config, String pack) {
+    private static List<String> worldsUsing(PackmuleConfig config, String pack) {
         List<String> worlds = new ArrayList<>();
         config.worlds().forEach((world, packs) -> {
             if (packs.contains(pack)) worlds.add(world);
@@ -204,60 +206,60 @@ public final class ResourcePackButler extends JavaPlugin implements Listener {
         if (!force && last != null && now - last < WARN_AGAIN_AFTER_MS) return;
         lastWarned.put(key, now);
         getLogger().warning(message);
-        Component line = Component.text("[Resource Pack Butler] " + message, NamedTextColor.RED);
+        Component line = Component.text("[Packmule] " + message, NamedTextColor.RED);
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (player.hasPermission("resourcepackbutler.notify")) player.sendMessage(line);
+            if (allowed(player, "packmule.notify")) player.sendMessage(line);
         }
     }
 
     @EventHandler
     public void onAdminJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        if (!player.hasPermission("resourcepackbutler.notify") || config == null) return;
+        if (!allowed(player, "packmule.notify") || config == null) return;
         List<String> dead = new ArrayList<>();
         for (String name : config.packs().keySet()) {
             Outcome outcome = outcome(name);
             if (outcome != null && !outcome.live()) dead.add(name);
         }
         if (!dead.isEmpty()) {
-            player.sendMessage(Component.text("[Resource Pack Butler] Dead pack links: " + String.join(", ", dead)
-                    + ". /butler status has details.", NamedTextColor.RED));
+            player.sendMessage(Component.text("[Packmule] Dead pack links: " + String.join(", ", dead)
+                    + ". /packmule status has details.", NamedTextColor.RED));
         }
     }
 
     @EventHandler
     public void onWorldLoad(WorldLoadEvent event) {
         if (config != null && !config.worlds().containsKey(event.getWorld().getName())) {
-            getLogger().warning("World '" + event.getWorld().getName() + "' isn't listed under worlds, so Butler sends it no packs.");
+            getLogger().warning("World '" + event.getWorld().getName() + "' isn't listed under worlds, so Packmule sends it no packs.");
         }
     }
 
-    private ButlerConfig.Result readConfig() {
+    private PackmuleConfig.Result readConfig() {
         File file = new File(getDataFolder(), "config.yml");
         YamlConfiguration yaml = new YamlConfiguration();
         try {
             yaml.load(file);
         } catch (Exception e) {
-            return new ButlerConfig.Result(null, List.of("config.yml can't be read: " + e.getMessage()));
+            return new PackmuleConfig.Result(null, List.of("config.yml can't be read: " + e.getMessage()));
         }
-        return ButlerConfig.parse(yaml);
+        return PackmuleConfig.parse(yaml);
     }
 
-    private void logErrors(ButlerConfig.Result result) {
+    private void logErrors(PackmuleConfig.Result result) {
         for (String error : result.errors()) getLogger().severe(error);
     }
 
     private void warnAboutServerProperties() {
         String url = Bukkit.getResourcePack();
         if (url != null && !url.isBlank()) {
-            getLogger().warning("server.properties sets resource-pack=" + url + ". That pack fights Butler's packs: clear resource-pack= and restart.");
+            getLogger().warning("server.properties sets resource-pack=" + url + ". That pack fights Packmule's packs: clear resource-pack= and restart.");
         }
     }
 
     private void warnAboutWorlds() {
         for (World world : Bukkit.getWorlds()) {
             if (!config.worlds().containsKey(world.getName())) {
-                getLogger().warning("World '" + world.getName() + "' isn't listed under worlds, so Butler sends it no packs. List it, with [] if that's intended.");
+                getLogger().warning("World '" + world.getName() + "' isn't listed under worlds, so Packmule sends it no packs. List it, with [] if that's intended.");
             }
         }
         for (String world : config.worlds().keySet()) {
@@ -267,4 +269,9 @@ public final class ResourcePackButler extends JavaPlugin implements Listener {
             if (worldsUsing(config, pack).isEmpty()) getLogger().info("Pack '" + pack + "' isn't used by any world.");
         }
     }
+
+    private final OldPermissions oldPermissions = new OldPermissions(line -> getLogger().warning(line));
+
+    /** True for {@code node}, or its old {@code resourcepackbutler.*} name for one release. See {@link OldPermissions}. */
+    public boolean allowed(org.bukkit.permissions.Permissible who, String node) { return oldPermissions.allowed(who, node); }
 }

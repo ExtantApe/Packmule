@@ -1,1 +1,1 @@
-rootProject.name = "ResourcePackButler"
+rootProject.name = "Packmule"

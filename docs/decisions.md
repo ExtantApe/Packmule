@@ -27,3 +27,4 @@ Owner decisions that shape Butler, with the date each was made. Change these onl
 - **Done well:** what players and admins see should be clear and readable, with sensible defaults. This produced the player messages in `config.yml`.
 - **Test hygiene:** one test server at a time, deleted after its run.
 - **Going public:** the owner said yes to making this repo public at its first release, after the first-public-push audit passed.
+- **Name (2026-11-08, owner):** ResourcePackButler is renamed Packmule, one word in every place: repo, plugin name, jar, package and prose. Released as 0.2.0. Existing servers get their `plugins/ResourcePackButler/` folder copied on first start (never overwritten), and the old commands and permissions keep working for one release with a log warning. Pack IDs keep the old `resourcepackbutler:pack:` namespace for good, because clients see them.

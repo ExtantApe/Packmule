@@ -1,4 +1,4 @@
-package com.extantape.resourcepackbutler.config;
+package com.extantape.packmule.config;
 
 import org.bukkit.configuration.ConfigurationSection;
 
@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /** config.yml, checked. A config with any error is never used: the caller keeps the last good one, or sends nothing. */
-public record ButlerConfig(
+public record PackmuleConfig(
         Map<String, PackSource> packs,
         Map<String, List<String>> worlds,
         Messages messages,
@@ -52,7 +52,7 @@ public record ButlerConfig(
                         + "Staff have been told.</yellow>");
     }
 
-    public record Result(ButlerConfig config, List<String> errors) {
+    public record Result(PackmuleConfig config, List<String> errors) {
         public boolean ok() {
             return errors.isEmpty();
         }
@@ -155,7 +155,7 @@ public record ButlerConfig(
                 root.getString("messages.download-failed", d.downloadFailed()),
                 root.getString("messages.unavailable", d.unavailable()));
 
-        ButlerConfig config = new ButlerConfig(Collections.unmodifiableMap(packs), Collections.unmodifiableMap(worlds),
+        PackmuleConfig config = new PackmuleConfig(Collections.unmodifiableMap(packs), Collections.unmodifiableMap(worlds),
                 messages, answer, retries, timeout);
         return new Result(config, List.copyOf(errors));
     }

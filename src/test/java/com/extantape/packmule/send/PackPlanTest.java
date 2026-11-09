@@ -1,6 +1,6 @@
-package com.extantape.resourcepackbutler.send;
+package com.extantape.packmule.send;
 
-import com.extantape.resourcepackbutler.send.PackPlan.Pack;
+import com.extantape.packmule.send.PackPlan.Pack;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -22,7 +22,7 @@ class PackPlanTest {
     }
 
     @Test
-    void emptyListRemovesOnlyButlersPacks() {
+    void emptyListRemovesOnlyPackmulesPacks() {
         var change = PackPlan.between(List.of(A, B), List.of());
         assertEquals(List.of(A.id(), B.id()), change.remove());
         assertTrue(change.send().isEmpty());
@@ -62,5 +62,11 @@ class PackPlanTest {
     void idsAreStableAndDistinct() {
         assertEquals(PackPlan.idFor("main"), PackPlan.idFor("main"));
         assertNotEquals(PackPlan.idFor("main"), PackPlan.idFor("other"));
+    }
+
+    @Test
+    void packIdsAreTheSameAsBeforeTheRename() {
+        // Clients see these IDs. If they changed, every player would drop and re-download every pack once.
+        assertEquals(java.util.UUID.fromString("5eac6b96-e786-39ea-badf-55cc15c67d05"), PackPlan.idFor("main"));
     }
 }
