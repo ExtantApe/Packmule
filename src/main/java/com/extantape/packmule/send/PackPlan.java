@@ -1,4 +1,4 @@
-package com.extantape.resourcepackbutler.send;
+package com.extantape.packmule.send;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -6,9 +6,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Works out what to change on a client to go from the packs Butler last sent to the packs a world wants.
+ * Works out what to change on a client to go from the packs Packmule last sent to the packs a world wants.
  * Packs stack in the order they're sent, so everything from the first difference on is removed and sent
- * again; the matching start of the list is left alone. Only Butler's own pack IDs ever appear here.
+ * again; the matching start of the list is left alone. Only Packmule's own pack IDs ever appear here.
  */
 public final class PackPlan {
     private PackPlan() {
@@ -30,6 +30,8 @@ public final class PackPlan {
 
     /** Stable per pack name, so a new hash for the same pack replaces it on the client. */
     public static UUID idFor(String packName) {
+        // Keeps the namespace from before the rename to Packmule (2026-11-09) on purpose: these IDs go to clients,
+        // and changing them would make every player's client drop and re-download every pack once.
         return UUID.nameUUIDFromBytes(("resourcepackbutler:pack:" + packName).getBytes(StandardCharsets.UTF_8));
     }
 

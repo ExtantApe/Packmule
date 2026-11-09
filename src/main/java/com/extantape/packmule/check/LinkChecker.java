@@ -1,7 +1,7 @@
-package com.extantape.resourcepackbutler.check;
+package com.extantape.packmule.check;
 
-import com.extantape.resourcepackbutler.config.ButlerConfig;
-import com.extantape.resourcepackbutler.config.ButlerConfig.PackSource;
+import com.extantape.packmule.config.PackmuleConfig;
+import com.extantape.packmule.config.PackmuleConfig.PackSource;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -55,7 +55,7 @@ public final class LinkChecker {
      */
     public Outcome check(PackSource source, String lastGood) {
         List<String> notes = new ArrayList<>();
-        String addressProblem = ButlerConfig.addressProblem(source.url());
+        String addressProblem = PackmuleConfig.addressProblem(source.url());
         if (addressProblem != null) return dead(source, "bad url '" + source.url() + "', because " + addressProblem, notes);
         String sha1;
         String fresh = null;
@@ -81,7 +81,7 @@ public final class LinkChecker {
         }
 
         List<String> candidates = new ArrayList<>();
-        if (source.movingAddress()) candidates.add(ButlerConfig.buildAddress(source.url(), sha1));
+        if (source.movingAddress()) candidates.add(PackmuleConfig.buildAddress(source.url(), sha1));
         candidates.add(source.url());
 
         String reason = null;
@@ -90,7 +90,7 @@ public final class LinkChecker {
             try {
                 String got = downloadSha1(url);
                 if (got.equals(sha1)) {
-                    boolean build = source.movingAddress() ? i == 0 : ButlerConfig.sha1FromAddress(url) != null;
+                    boolean build = source.movingAddress() ? i == 0 : PackmuleConfig.sha1FromAddress(url) != null;
                     if (source.movingAddress() && i > 0) {
                         notes.add("No per-build address at " + candidates.get(0) + ", so players get the moving address.");
                     }
@@ -114,7 +114,7 @@ public final class LinkChecker {
         byte[] body = fetch(url, MAX_HASH_FILE, null);
         String text = new String(body, StandardCharsets.UTF_8).trim();
         String first = text.isEmpty() ? "" : text.split("\\s+", 2)[0].toLowerCase(Locale.ROOT);
-        if (!ButlerConfig.isSha1(first)) throw new CheckFailed("it doesn't hold a SHA-1");
+        if (!PackmuleConfig.isSha1(first)) throw new CheckFailed("it doesn't hold a SHA-1");
         return first;
     }
 
@@ -131,7 +131,7 @@ public final class LinkChecker {
 
     /** Downloads into the digest, or returns the body when there's no digest. */
     private byte[] fetch(String url, long limit, MessageDigest digest) throws CheckFailed {
-        String problem = ButlerConfig.addressProblem(url);
+        String problem = PackmuleConfig.addressProblem(url);
         if (problem != null) throw new CheckFailed("bad address, because " + problem);
         HttpURLConnection connection = null;
         long started = System.nanoTime();
@@ -140,7 +140,7 @@ public final class LinkChecker {
             connection.setConnectTimeout((int) timeout.toMillis());
             connection.setReadTimeout((int) timeout.toMillis());
             connection.setInstanceFollowRedirects(true);
-            connection.setRequestProperty("User-Agent", "ResourcePackButler");
+            connection.setRequestProperty("User-Agent", "Packmule");
             int code = connection.getResponseCode();
             if (code != 200) throw new CheckFailed("HTTP " + code);
             var buffer = new java.io.ByteArrayOutputStream();

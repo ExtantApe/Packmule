@@ -1,6 +1,6 @@
-package com.extantape.resourcepackbutler.check;
+package com.extantape.packmule.check;
 
-import com.extantape.resourcepackbutler.config.ButlerConfig.PackSource;
+import com.extantape.packmule.config.PackmuleConfig.PackSource;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -134,7 +134,7 @@ class LinkCheckerTest {
     void malformedUrlIsDeadNotFatal() throws Exception {
         var yaml = new org.bukkit.configuration.file.YamlConfiguration();
         yaml.loadFromString("packs:\n  bad: {url: 'htp:/nope'}\nworlds:\n  w: [bad]\n");
-        var result = com.extantape.resourcepackbutler.config.ButlerConfig.parse(yaml);
+        var result = com.extantape.packmule.config.PackmuleConfig.parse(yaml);
         assertTrue(result.ok(), result.errors().toString());
         var outcome = checker.check(result.config().packs().get("bad"), null);
         assertFalse(outcome.live());

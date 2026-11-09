@@ -1,4 +1,4 @@
-package com.extantape.resourcepackbutler.config;
+package com.extantape.packmule.config;
 
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
@@ -7,13 +7,13 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class ButlerConfigTest {
+class PackmuleConfigTest {
     private static final String H = "0123456789abcdef0123456789abcdef01234567";
 
-    private static ButlerConfig.Result parse(String yaml) throws Exception {
+    private static PackmuleConfig.Result parse(String yaml) throws Exception {
         YamlConfiguration config = new YamlConfiguration();
         config.loadFromString(yaml);
-        return ButlerConfig.parse(config);
+        return PackmuleConfig.parse(config);
     }
 
     @Test
@@ -64,12 +64,12 @@ class ButlerConfigTest {
 
     @Test
     void buildAddressSitsNextToTheMovingOne() {
-        assertEquals("https://h:8080/tok/" + H + ".zip", ButlerConfig.buildAddress("https://h:8080/tok/pack.zip", H));
-        assertEquals(H, ButlerConfig.sha1FromAddress("https://h/tok/" + H + ".zip"));
-        assertNull(ButlerConfig.sha1FromAddress("https://h/tok/pack.zip"));
-        assertNotNull(ButlerConfig.addressProblem("not a url"));
-        assertNotNull(ButlerConfig.addressProblem("https:///nohost"));
-        assertNull(ButlerConfig.addressProblem("http://127.0.0.1:9/x.zip"));
+        assertEquals("https://h:8080/tok/" + H + ".zip", PackmuleConfig.buildAddress("https://h:8080/tok/pack.zip", H));
+        assertEquals(H, PackmuleConfig.sha1FromAddress("https://h/tok/" + H + ".zip"));
+        assertNull(PackmuleConfig.sha1FromAddress("https://h/tok/pack.zip"));
+        assertNotNull(PackmuleConfig.addressProblem("not a url"));
+        assertNotNull(PackmuleConfig.addressProblem("https:///nohost"));
+        assertNull(PackmuleConfig.addressProblem("http://127.0.0.1:9/x.zip"));
     }
 
     @Test
@@ -78,9 +78,9 @@ class ButlerConfigTest {
         try (var in = getClass().getResourceAsStream("/config.yml")) {
             shipped.loadFromString(new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
         }
-        var result = ButlerConfig.parse(shipped);
+        var result = PackmuleConfig.parse(shipped);
         assertTrue(result.ok(), result.errors().toString());
-        assertEquals(ButlerConfig.Messages.DEFAULTS, result.config().messages(), "config.yml and Messages.DEFAULTS have drifted apart");
+        assertEquals(PackmuleConfig.Messages.DEFAULTS, result.config().messages(), "config.yml and Messages.DEFAULTS have drifted apart");
 
         var mm = net.kyori.adventure.text.minimessage.MiniMessage.miniMessage();
         var plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText();
@@ -98,6 +98,6 @@ class ButlerConfigTest {
         var result = parse("messages:\n  prompt: \"Custom\"\n");
         assertTrue(result.ok());
         assertEquals("Custom", result.config().messages().prompt());
-        assertEquals(ButlerConfig.Messages.DEFAULTS.declined(), result.config().messages().declined());
+        assertEquals(PackmuleConfig.Messages.DEFAULTS.declined(), result.config().messages().declined());
     }
 }

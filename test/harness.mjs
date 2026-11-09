@@ -1,6 +1,6 @@
 // Test harness: throwaway Paper servers in a temp folder on 127.0.0.1:25613, a small web server for made-up
 // packs, and mineflayer bots that answer pack requests the way a client's pack manager does.
-// It never copies or touches a real server. Everything it makes lives under RPB_TEST_WORK.
+// It never copies or touches a real server. Everything it makes lives under PACKMULE_TEST_WORK.
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { createServer } from 'node:http'
@@ -11,13 +11,13 @@ import mineflayer from 'mineflayer'
 export const HOST = '127.0.0.1'
 export const PORT = 25613
 export const PACK_PORT = 25614
-export const WORK = process.env.RPB_TEST_WORK
-export const JARS = process.env.RPB_TEST_JARS
-if (!WORK || !JARS) throw new Error('Set RPB_TEST_WORK (an empty temp folder) and RPB_TEST_JARS (paper and plugin jars)')
+export const WORK = process.env.PACKMULE_TEST_WORK
+export const JARS = process.env.PACKMULE_TEST_JARS
+if (!WORK || !JARS) throw new Error('Set PACKMULE_TEST_WORK (an empty temp folder) and PACKMULE_TEST_JARS (paper and plugin jars)')
 
 const ROOT = new URL('../', import.meta.url).pathname
 const LIBS = path.join(ROOT, 'build/libs')
-const built = existsSync(LIBS) ? readdirSync(LIBS).filter(f => /^ResourcePackButler-.*\.jar$/.test(f)) : []
+const built = existsSync(LIBS) ? readdirSync(LIBS).filter(f => /^Packmule-.*\.jar$/.test(f)) : []
 if (built.length !== 1) throw new Error(`Run ./gradlew clean build first: expected one jar in build/libs, found ${built.length}`)
 export const JAR = path.join(LIBS, built[0])
 
@@ -93,20 +93,20 @@ export class PackHost {
 
 // ---------- servers ----------
 /** A fresh server folder. The owner accepted the EULA for these throwaway test servers (2026-11-07). */
-export function freshServer(name, { paper, plugins = [], props = {}, butlerConfig }) {
+export function freshServer(name, { paper, plugins = [], props = {}, packmuleConfig }) {
   const dir = path.join(WORK, name)
   rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 })
-  mkdirSync(path.join(dir, 'plugins', 'ResourcePackButler'), { recursive: true })
+  mkdirSync(path.join(dir, 'plugins', 'Packmule'), { recursive: true })
   copyFileSync(paper, path.join(dir, 'paper.jar'))
   for (const p of [JAR, ...plugins]) copyFileSync(p, path.join(dir, 'plugins', path.basename(p)))
   writeFileSync(path.join(dir, 'eula.txt'), 'eula=true\n')
   writeProps(dir, props)
-  if (butlerConfig) writeFileSync(path.join(dir, 'plugins/ResourcePackButler/config.yml'), butlerConfig)
+  if (packmuleConfig) writeFileSync(path.join(dir, 'plugins/Packmule/config.yml'), packmuleConfig)
   return dir
 }
 /** Deletes a test server's folder. The owner's rule: no copies left between runs. */
 export function removeServer(dir) {
-  if (!dir.startsWith(WORK + path.sep)) throw new Error('refusing to delete outside RPB_TEST_WORK: ' + dir)
+  if (!dir.startsWith(WORK + path.sep)) throw new Error('refusing to delete outside PACKMULE_TEST_WORK: ' + dir)
   rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 })
 }
 
@@ -128,7 +128,7 @@ export class Server {
       buf += d.toString()
       let i; while ((i = buf.indexOf('\n')) >= 0) {
         const line = buf.slice(0, i).replace(/\x1b\[[0-9;]*m/g, ''); buf = buf.slice(i + 1)
-        this.log.push(line); this.all.push(line); if (process.env.RPB_TEST_VERBOSE) console.log('    | ' + line)
+        this.log.push(line); this.all.push(line); if (process.env.PACKMULE_TEST_VERBOSE) console.log('    | ' + line)
       }
     }
     this.proc.stdout.on('data', onData); this.proc.stderr.on('data', onData)
@@ -143,8 +143,8 @@ export class Server {
   mark() { return this.log.length }
   since(mark) { return this.log.slice(mark) }
   async waitLog(re, ms = 10000, from = 0) { return until(() => this.log.slice(from).some(l => re.test(l)), ms) }
-  butlerErrors() { return this.all.filter(l => /ResourcePackButler|resourcepackbutler/.test(l) && /(Exception|Error occurred|SEVERE.*Could not)/i.test(l)) }
-  exceptions() { return this.all.filter(l => /^\s*at com\.extantape\.resourcepackbutler|Exception.*resourcepackbutler/i.test(l)) }
+  packmuleErrors() { return this.all.filter(l => /Packmule|packmule/.test(l) && /(Exception|Error occurred|SEVERE.*Could not)/i.test(l)) }
+  exceptions() { return this.all.filter(l => /^\s*at com\.extantape\.packmule|Exception.*packmule/i.test(l)) }
   async stop() {
     if (!this.proc || this.proc.exitCode !== null) return
     this.cmd('stop')
@@ -162,7 +162,7 @@ const STATUS = { SUCCESSFULLY_LOADED: 0, DECLINED: 1, FAILED_DOWNLOAD: 2, ACCEPT
  * mode: accept (downloads and checks the hash), decline, silent (never answers), fail (download always fails).
  */
 export class Bot {
-  constructor(username, { mode = 'accept', loadMs = 150, version = process.env.RPB_TEST_BOT_VERSION ?? '26.1', only = null, still = process.env.RPB_TEST_STILL === '1' } = {}) {
+  constructor(username, { mode = 'accept', loadMs = 150, version = process.env.PACKMULE_TEST_BOT_VERSION ?? '26.1', only = null, still = process.env.PACKMULE_TEST_STILL === '1' } = {}) {
     Object.assign(this, { username, mode, loadMs, version, only, still })
     this.stack = []; this.events = []; this.kicked = null; this.ended = false; this.spawned = false
   }
@@ -229,8 +229,8 @@ export class Bot {
   async quit() { if (!this.ended) { this.bot.quit(); await until(() => this.ended, 5000) } }
 }
 
-/** Butler's pack ID for a pack name: Java's UUID.nameUUIDFromBytes, a version 3 UUID. */
-export function butlerId(name) {
+/** Packmule's pack ID for a pack name: Java's UUID.nameUUIDFromBytes, a version 3 UUID. */
+export function packmuleId(name) {
   const h = createHash('md5').update('resourcepackbutler:pack:' + name).digest()
   h[6] = (h[6] & 0x0f) | 0x30; h[8] = (h[8] & 0x3f) | 0x80
   const x = h.toString('hex')

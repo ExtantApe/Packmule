@@ -1,4 +1,4 @@
-# Resource Pack Butler
+# Packmule
 #
 # Every pack is required. A player who declines is kicked. A player whose download fails is retried,
 # then let in without that pack, and admins are told.
@@ -8,8 +8,8 @@
 #    A per-build address, with the SHA-1 in the file name. Nothing else needed:
 #      url: https://packs.example.com/TOKEN/0123456789abcdef0123456789abcdef01234567.zip
 #
-#    A moving address with a hash file next to it. Butler reads the hash at startup and on
-#    /butler recheck. If <same folder>/<sha1>.zip serves that exact build, players get that address
+#    A moving address with a hash file next to it. Packmule reads the hash at startup and on
+#    /packmule recheck. If <same folder>/<sha1>.zip serves that exact build, players get that address
 #    instead, so nobody downloads a file that changed under an old hash:
 #      url: https://packs.example.com/TOKEN/pack.zip
 #      sha1-url: https://packs.example.com/TOKEN/pack.zip.sha1
@@ -19,11 +19,11 @@
 #      sha1: 0123456789abcdef0123456789abcdef01234567
 #
 # 2. List every world, each Nether and End included, with the packs it gets in order. Later packs
-#    sit on top of earlier ones. An empty list [] means Butler sends that world nothing.
-#    A world that isn't listed also gets nothing, and Butler warns about it at startup.
+#    sit on top of earlier ones. An empty list [] means Packmule sends that world nothing.
+#    A world that isn't listed also gets nothing, and Packmule warns about it at startup.
 #
-# Butler only ever removes packs it sent. Other plugins' packs (BlueMapHUD's, say) are left alone.
-# Leave resource-pack= empty in server.properties: a pack there fights Butler's.
+# Packmule only ever removes packs it sent. Other plugins' packs (BlueMapHUD's, say) are left alone.
+# Leave resource-pack= empty in server.properties: a pack there fights Packmule's.
 
 packs: {}
 #  main:

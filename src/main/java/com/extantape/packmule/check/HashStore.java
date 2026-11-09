@@ -1,6 +1,6 @@
-package com.extantape.resourcepackbutler.check;
+package com.extantape.packmule.check;
 
-import com.extantape.resourcepackbutler.config.ButlerConfig;
+import com.extantape.packmule.config.PackmuleConfig;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -37,7 +37,7 @@ public final class HashStore {
             if (section == null) continue;
             String address = section.getString("sha1-url");
             String sha1 = section.getString("sha1");
-            if (address != null && ButlerConfig.isSha1(sha1)) hashes.put(address, sha1);
+            if (address != null && PackmuleConfig.isSha1(sha1)) hashes.put(address, sha1);
         }
         return null;
     }
@@ -52,7 +52,7 @@ public final class HashStore {
         hashes.put(sha1Url, sha1);
         YamlConfiguration yaml = new YamlConfiguration();
         yaml.options().setHeader(java.util.List.of(
-                "Written by Resource Pack Butler: the last hash each hash file gave that matched its pack.",
+                "Written by Packmule: the last hash each hash file gave that matched its pack.",
                 "Safe to delete; it's only used when a hash file can't be read."));
         int i = 0;
         for (var entry : hashes.entrySet()) {

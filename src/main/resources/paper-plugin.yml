@@ -1,19 +1,31 @@
-name: ResourcePackButler
+name: Packmule
 version: '${version}'
-main: com.extantape.resourcepackbutler.ResourcePackButler
+main: com.extantape.packmule.Packmule
 api-version: '26.1'
 description: Sends each world its own required resource packs, and warns at startup when a pack link is dead.
-website: https://github.com/ExtantApe/ResourcePackButler
+website: https://github.com/ExtantApe/Packmule
 permissions:
-  resourcepackbutler.recheck:
-    description: Use /butler recheck, which re-tests every link and re-reads every hash file.
+  packmule.recheck:
+    description: Use /packmule recheck, which re-tests every link and re-reads every hash file.
     default: op
-  resourcepackbutler.reload:
-    description: Use /butler reload, which reads config.yml again and re-checks.
+  packmule.reload:
+    description: Use /packmule reload, which reads config.yml again and re-checks.
     default: op
-  resourcepackbutler.status:
-    description: Use /butler status.
+  packmule.status:
+    description: Use /packmule status.
     default: op
-  resourcepackbutler.notify:
+  packmule.notify:
     description: See warnings about dead links and failed downloads in chat.
     default: op
+  resourcepackbutler.recheck:
+    description: The old name for packmule.recheck, from before the rename. Still works in 0.2.x and is removed in the next release.
+    default: false
+  resourcepackbutler.reload:
+    description: The old name for packmule.reload, from before the rename. Still works in 0.2.x and is removed in the next release.
+    default: false
+  resourcepackbutler.status:
+    description: The old name for packmule.status, from before the rename. Still works in 0.2.x and is removed in the next release.
+    default: false
+  resourcepackbutler.notify:
+    description: The old name for packmule.notify, from before the rename. Still works in 0.2.x and is removed in the next release.
+    default: false
