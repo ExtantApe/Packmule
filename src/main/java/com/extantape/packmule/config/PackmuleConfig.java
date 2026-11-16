@@ -27,10 +27,31 @@ public record PackmuleConfig(
      * Where a pack lives and how its hash is known. Exactly one of sha1 and sha1Url is set, except for a
      * malformed url, which has neither and is always reported dead.
      */
-    public record PackSource(String name, String url, String sha1, String sha1Url) {
+    public record PackSource(String name, String url, String sha1, String sha1Url, Check check) {
+        public PackSource(String name, String url, String sha1, String sha1Url) {
+            this(name, url, sha1, sha1Url, null);
+        }
+
         public boolean movingAddress() {
             return sha1Url != null;
         }
+    }
+
+    /**
+     * For a pack behind a gate that only lets players in (D219): Packmule checks it at a loopback address instead,
+     * with a token read fresh from a file, so the token never leaves this machine. Addresses under
+     * {@code publicPrefix} are fetched at {@code localPrefix} plus the rest. Players still get the public address.
+     */
+    public record Check(String publicPrefix, String localPrefix, String tokenFile) {
+        public static final String HEADER = "X-Pack-Check-Token";
+    }
+
+    /** True for a host name that can only mean this machine. */
+    public static boolean isLoopback(String host) {
+        if (host == null) return false;
+        String h = host.toLowerCase(Locale.ROOT);
+        if (h.startsWith("[") && h.endsWith("]")) h = h.substring(1, h.length() - 1);
+        return h.equals("localhost") || h.equals("::1") || h.matches("127(\\.\\d{1,3}){3}");
     }
 
     /**
@@ -188,12 +209,54 @@ public record PackmuleConfig(
                 errors.add("Pack '" + name + "': sha1 doesn't match the hash in the url's file name.");
                 return null;
             }
-            return new PackSource(name, url, sha1, null);
+            return withCheck(new PackSource(name, url, sha1, null), pack, errors);
         }
-        if (sha1Url != null) return new PackSource(name, url, null, sha1Url); // A bad one is reported by the check.
-        if (fromName != null) return new PackSource(name, url, fromName, null);
+        if (sha1Url != null) return withCheck(new PackSource(name, url, null, sha1Url), pack, errors); // A bad one is reported by the check.
+        if (fromName != null) return withCheck(new PackSource(name, url, fromName, null), pack, errors);
         errors.add("Pack '" + name + "' needs a hash: use a per-build url ending in <sha1>.zip, or add sha1 or sha1-url.");
         return null;
+    }
+
+    /** Adds the pack's check block, if it has one. Any problem in it is a config error, so a gated pack never half-works. */
+    private static PackSource withCheck(PackSource source, ConfigurationSection pack, List<String> errors) {
+        if (!pack.contains("check")) return source;
+        String name = source.name();
+        ConfigurationSection c = pack.getConfigurationSection("check");
+        if (c == null) {
+            errors.add("Pack '" + name + "': check must be a map with public-prefix, local-prefix and token-file.");
+            return null;
+        }
+        String pub = trimmed(c.getString("public-prefix"));
+        String local = trimmed(c.getString("local-prefix"));
+        String token = trimmed(c.getString("token-file"));
+        if (pub == null || local == null || token == null) {
+            errors.add("Pack '" + name + "': check needs public-prefix, local-prefix and token-file.");
+            return null;
+        }
+        if (!pub.endsWith("/") || !local.endsWith("/")) {
+            errors.add("Pack '" + name + "': check's public-prefix and local-prefix must each end in /.");
+            return null;
+        }
+        if (addressProblem(pub) != null || !source.url().startsWith(pub)) {
+            errors.add("Pack '" + name + "': check's public-prefix must be the start of the pack's url.");
+            return null;
+        }
+        URI localUri;
+        try {
+            localUri = URI.create(local);
+        } catch (IllegalArgumentException e) {
+            localUri = null;
+        }
+        if (localUri == null || addressProblem(local) != null || !isLoopback(localUri.getHost())
+                || localUri.getRawQuery() != null || localUri.getRawFragment() != null || localUri.getRawUserInfo() != null) {
+            errors.add("Pack '" + name + "': check's local-prefix must be a plain http address on this machine, like http://127.0.0.1:8766/, so the token never leaves it.");
+            return null;
+        }
+        return new PackSource(name, source.url(), source.sha1(), source.sha1Url(), new Check(pub, local, token));
+    }
+
+    private static String trimmed(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private static int intSetting(ConfigurationSection root, String key, int fallback, int min, int max, List<String> errors) {
