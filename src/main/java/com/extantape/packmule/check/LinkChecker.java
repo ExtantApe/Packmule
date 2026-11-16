@@ -1,6 +1,7 @@
 package com.extantape.packmule.check;
 
 import com.extantape.packmule.config.PackmuleConfig;
+import com.extantape.packmule.config.PackmuleConfig.Check;
 import com.extantape.packmule.config.PackmuleConfig.PackSource;
 
 import java.io.IOException;
@@ -64,7 +65,7 @@ public final class LinkChecker {
         } else {
             String read;
             try {
-                read = readHashFile(source.sha1Url());
+                read = readHashFile(source.sha1Url(), source.check());
             } catch (CheckFailed e) {
                 read = null;
                 notes.add("Couldn't read its hash file " + source.sha1Url() + ": " + e.getMessage() + ".");
@@ -88,7 +89,7 @@ public final class LinkChecker {
         for (int i = 0; i < candidates.size(); i++) {
             String url = candidates.get(i);
             try {
-                String got = downloadSha1(url);
+                String got = downloadSha1(url, source.check());
                 if (got.equals(sha1)) {
                     boolean build = source.movingAddress() ? i == 0 : PackmuleConfig.sha1FromAddress(url) != null;
                     if (source.movingAddress() && i > 0) {
@@ -111,7 +112,11 @@ public final class LinkChecker {
 
     /** The first 40-hex word of the hash file, lowercased. sha1sum's "hash  filename" form works too. */
     String readHashFile(String url) throws CheckFailed {
-        byte[] body = fetch(url, MAX_HASH_FILE, null);
+        return readHashFile(url, null);
+    }
+
+    String readHashFile(String url, Check check) throws CheckFailed {
+        byte[] body = fetch(url, MAX_HASH_FILE, null, check);
         String text = new String(body, StandardCharsets.UTF_8).trim();
         String first = text.isEmpty() ? "" : text.split("\\s+", 2)[0].toLowerCase(Locale.ROOT);
         if (!PackmuleConfig.isSha1(first)) throw new CheckFailed("it doesn't hold a SHA-1");
@@ -119,30 +124,42 @@ public final class LinkChecker {
     }
 
     String downloadSha1(String url) throws CheckFailed {
+        return downloadSha1(url, null);
+    }
+
+    String downloadSha1(String url, Check check) throws CheckFailed {
         MessageDigest digest;
         try {
             digest = MessageDigest.getInstance("SHA-1");
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
-        fetch(url, MAX_BYTES, digest);
+        fetch(url, MAX_BYTES, digest, check);
         return HexFormat.of().formatHex(digest.digest());
     }
 
     /** Downloads into the digest, or returns the body when there's no digest. */
-    private byte[] fetch(String url, long limit, MessageDigest digest) throws CheckFailed {
+    private byte[] fetch(String url, long limit, MessageDigest digest, Check check) throws CheckFailed {
         String problem = PackmuleConfig.addressProblem(url);
         if (problem != null) throw new CheckFailed("bad address, because " + problem);
+        // A gated pack is checked on this machine, with the token. Anything not under the public prefix goes as usual.
+        String token = null;
+        if (check != null && url.startsWith(check.publicPrefix())) {
+            url = check.localPrefix() + url.substring(check.publicPrefix().length());
+            token = CheckToken.read(check.tokenFile());
+        }
         HttpURLConnection connection = null;
         long started = System.nanoTime();
         try {
             connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
             connection.setConnectTimeout((int) timeout.toMillis());
             connection.setReadTimeout((int) timeout.toMillis());
-            connection.setInstanceFollowRedirects(true);
+            // The token must never follow a redirect somewhere else.
+            connection.setInstanceFollowRedirects(token == null);
             connection.setRequestProperty("User-Agent", "Packmule");
+            if (token != null) connection.setRequestProperty(Check.HEADER, token);
             int code = connection.getResponseCode();
-            if (code != 200) throw new CheckFailed("HTTP " + code);
+            if (code != 200) throw new CheckFailed("HTTP " + code + (token != null ? " from the local check address" : ""));
             var buffer = new java.io.ByteArrayOutputStream();
             long total = 0;
             byte[] chunk = new byte[64 * 1024];

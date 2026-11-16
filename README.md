@@ -35,6 +35,22 @@ With a hash file, Packmule also looks for `<same folder>/<sha1>.zip`. If that ad
 
 Leaf Juice serves its recipes at both kinds of address, but Packmule works with any host.
 
+### Packs only your players can download
+
+Leaf Juice can serve a pack only to players joining the server: it checks the game's own request headers against the whitelist and the server log, and refuses everyone else. Packmule's startup check isn't a player, so a pack like that needs a `check` block:
+
+```yaml
+packs:
+  private:
+    url: https://join.example.com/zz/TOKEN/0123456789abcdef0123456789abcdef01234567.zip
+    check:
+      public-prefix: https://join.example.com/zz/
+      local-prefix: http://127.0.0.1:8766/
+      token-file: ~/Library/Application Support/LeafJuice/pack-check/my-server.token
+```
+
+Packmule then checks the pack at the local address, sending the token from the file in an `X-Pack-Check-Token` header. Players still get `url`. Packmule refuses the config if `local-prefix` isn't on this machine (127.0.0.1, ::1 or localhost) or `public-prefix` isn't the start of `url`. It refuses the check if the token file is a link, belongs to another user, can be read by anyone else (it must be mode 600), or doesn't hold 64 hex characters. A token request never follows a redirect, and the token is never logged. `/packmule pack set` keeps the block when the new address is still under `public-prefix`. Your web server should strip `X-Pack-Check-Token` from outside requests.
+
 ## Install
 
 1. Put `Packmule-<version>.jar` in `plugins/` and start the server once.
@@ -102,7 +118,7 @@ The jar is `build/libs/Packmule-<version>.jar`. A `v*` tag builds it and attache
 
 ## Tests
 
-`./gradlew test` runs the unit tests: config parsing, the link checker against a local web server, and the pack diff.
+`./gradlew test` runs the unit tests: config parsing, the link checker against a local web server, the check for gated packs against a made-up gate, and the pack diff.
 
 `test/` holds the bot tests. They start throwaway Paper servers on 127.0.0.1:25613 in a temp folder you choose, and serve made-up packs on 127.0.0.1:25614. Bots connect as 26.1 clients: directly on 26.1.2, and through ViaVersion and ViaBackwards on 26.2 and 26.3. They answer pack requests the way the client's pack manager does, and download and hash each pack. `test/waystation.mjs` walks a bot through a Waystation gate and back.
 

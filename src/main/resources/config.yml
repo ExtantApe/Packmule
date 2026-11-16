@@ -28,6 +28,18 @@
 packs: {}
 #  main:
 #    url: https://packs.example.com/TOKEN/0123456789abcdef0123456789abcdef01234567.zip
+#
+# A pack behind a gate that lets only joining players download it (Leaf Juice's "Only players joining this
+# server") would fail Packmule's startup check, since that check isn't a player. Give it a check block: Packmule
+# then checks it on this machine at local-prefix, sending the token from token-file, and players still get url.
+# local-prefix must be on this machine (127.0.0.1, ::1 or localhost), so the token never leaves it. The token file
+# must be a plain file, mode 600, owned by the user the server runs as. Leaf Juice shows its path on the hosting card.
+#  private:
+#    url: https://join.example.com/zz/TOKEN/0123456789abcdef0123456789abcdef01234567.zip
+#    check:
+#      public-prefix: https://join.example.com/zz/
+#      local-prefix: http://127.0.0.1:8766/
+#      token-file: ~/Library/Application Support/LeafJuice/pack-check/my-server.token
 
 worlds: {}
 #  world: [main]

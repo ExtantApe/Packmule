@@ -100,4 +100,51 @@ class PackmuleConfigTest {
         assertEquals("Custom", result.config().messages().prompt());
         assertEquals(PackmuleConfig.Messages.DEFAULTS.declined(), result.config().messages().declined());
     }
+
+    @Test
+    void readsAGatedPacksCheckBlock() throws Exception {
+        var result = parse("""
+                packs:
+                  zz:
+                    url: "https://join.example/zz/t/%s.zip"
+                    check: {public-prefix: "https://join.example/zz/", local-prefix: "http://127.0.0.1:8766/", token-file: "/x/s.token"}
+                """.formatted(H));
+        assertTrue(result.ok(), result.errors().toString());
+        var check = result.config().packs().get("zz").check();
+        assertEquals("http://127.0.0.1:8766/", check.localPrefix());
+        assertEquals("/x/s.token", check.tokenFile());
+    }
+
+    @Test
+    void refusesACheckBlockThatCouldSendTheTokenAway() throws Exception {
+        String[] bad = {
+                "{public-prefix: \"https://join.example/zz/\", local-prefix: \"http://10.0.0.5:8766/\", token-file: \"/t\"}",
+                "{public-prefix: \"https://join.example/zz/\", local-prefix: \"http://example.com/\", token-file: \"/t\"}",
+                "{public-prefix: \"https://join.example/zz/\", local-prefix: \"http://user@127.0.0.1:8766/\", token-file: \"/t\"}",
+                "{public-prefix: \"https://other.example/zz/\", local-prefix: \"http://127.0.0.1:8766/\", token-file: \"/t\"}",
+                "{public-prefix: \"https://join.example/zz\", local-prefix: \"http://127.0.0.1:8766/\", token-file: \"/t\"}",
+                "{public-prefix: \"https://join.example/zz/\", local-prefix: \"http://127.0.0.1:8766/\"}",
+                "yes",
+        };
+        for (String check : bad) {
+            var result = parse("""
+                    packs:
+                      zz:
+                        url: "https://join.example/zz/t/%s.zip"
+                        check: %s
+                    """.formatted(H, check));
+            assertFalse(result.ok(), check);
+        }
+    }
+
+    @Test
+    void loopbackMeansThisMachineOnly() {
+        assertTrue(PackmuleConfig.isLoopback("127.0.0.1"));
+        assertTrue(PackmuleConfig.isLoopback("[::1]"));
+        assertTrue(PackmuleConfig.isLoopback("localhost"));
+        assertFalse(PackmuleConfig.isLoopback("127.0.0.1.example.com"));
+        assertFalse(PackmuleConfig.isLoopback("localhost.example.com"));
+        assertFalse(PackmuleConfig.isLoopback("192.168.1.2"));
+        assertFalse(PackmuleConfig.isLoopback(null));
+    }
 }

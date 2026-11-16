@@ -132,11 +132,18 @@ public final class Packmule extends JavaPlugin implements Listener {
      * /packmule reload. Any failure leaves config.yml and the pack as they were. {@code done} gets the outcome on the
      * main thread: null when it worked, or the refusal.
      */
+    /** A gated pack keeps its check block when Leaf Juice hands it a new address, as long as the address stays under it. */
+    private PackmuleConfig.Check gatedCheck(com.extantape.packmule.command.PackSet.Plan plan) {
+        PackSource old = config.packs().get(plan.pack());
+        if (old == null || old.check() == null || !plan.url().startsWith(old.check().publicPrefix())) return null;
+        return old.check();
+    }
+
     public boolean setPack(com.extantape.packmule.command.PackSet.Plan plan, java.util.function.Consumer<com.extantape.packmule.command.PackSet.Refused> done) {
         if (setting) return false;
         setting = true;
         LinkChecker checker = new LinkChecker(Duration.ofSeconds(config.checkTimeoutSeconds()));
-        CompletableFuture.supplyAsync(() -> checker.check(new PackSource(plan.pack(), plan.url(), plan.sha1(), null), null), checks)
+        CompletableFuture.supplyAsync(() -> checker.check(new PackSource(plan.pack(), plan.url(), plan.sha1(), null, gatedCheck(plan)), null), checks)
                 .whenComplete((outcome, error) -> {
                     if (!isEnabled()) return;
                     Bukkit.getScheduler().runTask(this, () -> {

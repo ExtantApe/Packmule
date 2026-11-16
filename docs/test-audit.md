@@ -27,3 +27,17 @@ Each README promise and the test that holds it. "Bots" is `test/suite.mjs` on th
 **Skipped, with reasons:**
 - "No background polling": it's an absence of code (there's no scheduled check); a test watching for traffic over time would prove little more than reading `Packmule.java`, done at this audit.
 - How the prompt and kick messages read on screen, and how a real loading screen feels: real client only, listed under "What hasn't been tested".
+
+## 2026-11-15: gated packs (0.4.0)
+
+| Promise | Test |
+| --- | --- |
+| A gated pack is checked at the local address with the token, and players keep the public address | unit `checksAtTheLocalAddressWithTheTokenAndPlayersKeepThePublicOne` |
+| Without a check block the gate refuses Packmule's check | unit `withoutTheCheckBlockTheGateRefusesTheCheck` |
+| **The token never leaves this machine:** non-loopback, user-part, wrong-prefix and incomplete check blocks are config errors | unit `refusesACheckBlockThatCouldSendTheTokenAway`, `loopbackMeansThisMachineOnly` |
+| **The token never follows a redirect** or goes to an address outside the public prefix | unit `theTokenNeverFollowsARedirect`, `addressesOutsideThePublicPrefixGoWithoutTheToken` |
+| **Fail closed on the token file:** shared (not 600), linked, missing or malformed files fail the check, and the token isn't in the reason | unit `aTokenFileOthersCanReadIsRefusedAndNothingIsSent`, `aLinkedTokenFileIsRefused`, `aMissingOrMalformedTokenFileIsRefused`, `aWrongTokenIsDead` |
+| The check block is read | unit `readsAGatedPacksCheckBlock` |
+
+**Gaps:** `/packmule pack set` keeping the block is a three-line lookup in `Packmule.gatedCheck`, covered by reading it; a bot test needs Leaf Juice's half (D220), so it runs with the refusal tests against the real gate.
+**Skipped:** a file owned by another user, since a test can't create one without root; the owner comparison is one line next to the tested mode check.
