@@ -91,11 +91,25 @@ export class PackHost {
   }
 }
 
+// D226: a run removes everything it created, pass, fail or interrupted, and nothing else. Server folders made by
+// freshServer and the Java processes it starts are recorded; at exit they're killed and deleted. KEEP_TEST_SERVERS=1 keeps
+// the folders for debugging.
+const created = new Set(), procs = new Set()
+function cleanupAll() {
+  for (const p of procs) try { if (p.exitCode === null && p.signalCode === null) p.kill('SIGKILL') } catch {}
+  if (process.env.KEEP_TEST_SERVERS === '1') return
+  for (const d of created) try { rmSync(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }) } catch {}
+}
+process.on('exit', cleanupAll)
+for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => { cleanupAll(); process.exit(128 + ({ SIGHUP: 1, SIGINT: 2, SIGTERM: 15 })[sig]) })
+
 // ---------- servers ----------
 /** A fresh server folder. The owner accepted the EULA for these throwaway test servers (2026-11-07). */
 export function freshServer(name, { paper, plugins = [], props = {}, packmuleConfig }) {
   const dir = path.join(WORK, name)
+  if (existsSync(dir) && !created.has(dir)) throw new Error('a folder from an earlier run is in the way; it isn\'t this run\'s to delete: ' + dir)
   rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 })
+  created.add(dir)
   mkdirSync(path.join(dir, 'plugins', 'Packmule'), { recursive: true })
   copyFileSync(paper, path.join(dir, 'paper.jar'))
   for (const p of [JAR, ...plugins]) copyFileSync(p, path.join(dir, 'plugins', path.basename(p)))
@@ -123,6 +137,7 @@ export class Server {
   async start(ms = 240000) {
     this.log = []
     this.proc = spawn(this.java, [`-Xmx${this.memory}`, '-jar', 'paper.jar', '--nogui'], { cwd: this.dir, stdio: ['pipe', 'pipe', 'pipe'] })
+    procs.add(this.proc)
     let buf = ''
     const onData = d => {
       buf += d.toString()
